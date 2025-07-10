@@ -62,6 +62,7 @@ router.post('/login',
 router.post('/scan-order', 
   apiLimiter,
   authenticate,
+  authorize('rider'),
   body('airwayBillNumber').notEmpty().escape(),
   body('location').optional().isObject(),
   validate,
@@ -71,8 +72,8 @@ router.post('/scan-order',
 router.put('/order-status', 
   apiLimiter,
   authenticate,
+  authorize('rider'),
   body('orderId').isUUID(),
-  body('status').isIn(['in_warehouse', 'in_transit', 'delivered', 'failed']),
   body('failureReason').optional().escape(),
   body('location').optional().isObject(),
   validate,
@@ -85,6 +86,20 @@ router.put('/location',
   body('location').isObject(),
   validate,
   riderController.updateLocation
+);
+
+router.get('/info', 
+  apiLimiter,
+  authenticate,
+  authorize('rider'),
+  riderController.getRiderInfo
+);
+
+router.get('/rider/orders', 
+  apiLimiter,
+  authenticate,
+  authorize('rider'),
+  riderController.getAllOrdersForRider
 );
 
 module.exports = router;

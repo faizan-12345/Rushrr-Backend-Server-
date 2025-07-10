@@ -43,10 +43,6 @@ const Rider = sequelize.define('Rider', {
     type: DataTypes.INTEGER,
     defaultValue: 0
   },
-  todayDeliveries: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
   totalPickups: {
     type: DataTypes.INTEGER,
     defaultValue: 0

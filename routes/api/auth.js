@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const authController = require('../../controllers/authController');
 const { userValidationRules, validate } = require('../../utils/validators');
-const { authLimiter } = require('../../middleware/auth');
+const { authLimiter, authenticate } = require('../../middleware/auth');
 
 router.post('/signup', 
   authLimiter,
@@ -30,6 +30,11 @@ router.post('/verify-api-key',
 router.post('/verify-shopify-store', 
   // authLimiter,
   authController.checkShopifyStoreConnection
+);
+router.get('/merchant-info', 
+  authLimiter,
+  authenticate,
+  authController.getMerchantInfo
 );
 
 module.exports = router;

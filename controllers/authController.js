@@ -281,11 +281,32 @@ const checkShopifyStoreConnection = async (req, res) => {
   }
 };
 
+const getMerchantInfo = async (req, res) => {
+  try {
+    const merchantId = req.user.id;
+
+    const merchant = await User.findOne({
+      where: { id: merchantId, role: 'merchant' },
+      attributes: { exclude: ['password'] } // Exclude sensitive data
+    });
+
+    if (!merchant) {
+      return res.status(404).json({ error: 'Merchant not found' });
+    }
+
+    res.json({ success: true, merchant });
+  } catch (error) {
+    console.error('Get merchant info error:', error);
+    res.status(500).json({ error: 'Failed to fetch merchant information' });
+  }
+};
+
 
 module.exports = {
   signup,
   adminSignup,
   login,
   verifyApiKey,
-  checkShopifyStoreConnection
+  checkShopifyStoreConnection,
+  getMerchantInfo
 };

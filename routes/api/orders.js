@@ -16,7 +16,7 @@ const { authenticate, authorize, validateApiKey, apiLimiter } = require('../../m
 const { orderValidationRules, validate } = require('../../utils/validators');
 
 // Merchant routes
-router.post('/', 
+router.post('/create-order', 
   apiLimiter,
   authenticate, 
   authorize('merchant'),

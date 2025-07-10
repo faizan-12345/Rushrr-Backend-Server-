@@ -10,9 +10,14 @@ router.post('/signup',
   validate, 
   authController.signup
 );
+router.post('/admin-signup', 
+  authLimiter,
+  validate, 
+  authController.adminSignup
+);
 
 router.post('/login', 
-  authLimiter,
+  // authLimiter,
   userValidationRules.login, 
   validate, 
   authController.login

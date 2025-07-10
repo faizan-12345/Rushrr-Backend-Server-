@@ -50,6 +50,7 @@ const setupAssociations = () => {
   const Order = require('../models/Order');
   const Rider = require('../models/Rider');
   const OrderTracking = require('../models/OrderTracking');
+  const Admin = require('../models/Admin'); // ✅ Add this line
 
   User.hasMany(Order, { foreignKey: 'merchantId', as: 'orders' });
   Order.belongsTo(User, { foreignKey: 'merchantId', as: 'merchant' });

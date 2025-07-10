@@ -29,31 +29,67 @@ const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 
 // JWT Authentication
+// const authenticate = async (req, res, next) => {
+//   try {
+//     const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+//     if (!token) {
+//       throw new Error();
+//     }
+
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//     const user = await User.findOne({ 
+//       where: { 
+//         id: decoded.id, 
+//         isActive: true 
+//       } 
+//     });
+
+//     if (!user) {
+//       throw new Error();
+//     }
+
+//     req.user = user;
+//     req.token = token;
+//     next();
+//   } catch (error) {
+//     res.status(401).json({ error: 'Please authenticate' });
+//   }
+// };
+
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    // Get token from Authorization header
+    let token = req.header('Authorization')?.replace('Bearer ', '');
+
+    // If not in header, try getting token from cookies
+    if (!token && req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
+
     if (!token) {
-      throw new Error();
+      return res.status(401).json({ error: 'Authentication token not found.' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ 
-      where: { 
-        id: decoded.id, 
-        isActive: true 
-      } 
+
+    const user = await User.findOne({
+      where: {
+        id: decoded.id,
+        isActive: true
+      }
     });
 
     if (!user) {
-      throw new Error();
+      return res.status(401).json({ error: 'Invalid or expired token.' });
     }
 
     req.user = user;
     req.token = token;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Please authenticate' });
+    console.error('Authentication error:', error.message);
+    return res.status(401).json({ error: 'Please authenticate' });
   }
 };
 

@@ -69,14 +69,76 @@
 
 // controllers/orderController.js
 const Order = require('../models/Order');
+const User = require('../models/User');
 const OrderTracking = require('../models/OrderTracking');
-const { sequelize } = require('../config/database');
+// const { sequelize } = require('../config/database');
+const sequelize = require('../config/database'); // ✅ Correct
 const { Op } = require('sequelize');
 const crypto = require('crypto');
+const generateTrackingId = require('../utils/generateTrackingId');
+const he = require('he'); // Add at top
+
+// const createOrders = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+  
+//   try {
+//     const { orders, shopifyStoreUrl } = req.body;
+//     const merchantId = req.user.id;
+
+//     if (!shopifyStoreUrl) {
+//       return res.status(400).json({ error: 'Shopify store URL is required' });
+//     }
+
+//     // Process each Shopify order
+//     const createdOrders = await Promise.all(
+//       orders.map(async (shopifyOrder) => {
+//         // Check if order already exists
+//         const existingOrder = await Order.findOne({
+//           where: {
+//             shopifyOrderId: shopifyOrder.id,
+//             merchantId
+//           }
+//         });
+
+//         if (existingOrder) {
+//           return existingOrder;
+//         }
+
+//         // Create new order with Shopify data
+//         return Order.create({
+//           merchantId,
+//           shopifyOrderId: shopifyOrder.id,
+//           shopifyStoreUrl,
+//           shopifyOrderData: shopifyOrder,
+//           status: 'selected'
+//         }, { transaction });
+//       })
+//     );
+
+//     await transaction.commit();
+
+//     res.status(201).json({
+//       success: true,
+//       orders: createdOrders.map(order => ({
+//         id: order.id,
+//         shopifyOrderId: order.shopifyOrderId,
+//         orderNumber: order.shopifyOrderData.order_number,
+//         customerName: order.shopifyOrderData.shipping_address?.name || order.shopifyOrderData.billing_address?.name,
+//         totalPrice: order.shopifyOrderData.total_price,
+//         status: order.status,
+//         createdAt: order.createdAt
+//       }))
+//     });
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Create orders error:', error);
+//     res.status(500).json({ error: 'Failed to create orders' });
+//   }
+// };
 
 const createOrders = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { orders, shopifyStoreUrl } = req.body;
     const merchantId = req.user.id;
@@ -85,10 +147,44 @@ const createOrders = async (req, res) => {
       return res.status(400).json({ error: 'Shopify store URL is required' });
     }
 
-    // Process each Shopify order
+    const merchant = await User.findOne({ where: { id: merchantId } });
+
+    if (!merchant) {
+      return res.status(404).json({ success: false, message: 'Merchant not found.' });
+    }
+    console.log(merchant.email)
+    console.log(merchant.shopifyStoreUrl)
+//     console.log('DB URL:', merchant.shopifyStoreUrl);
+// console.log('DB URL Length:', merchant.shopifyStoreUrl.length);
+// console.log('DB URL Char Codes:', merchant.shopifyStoreUrl.split('').map(c => c.charCodeAt(0)));
+
+// console.log('Payload URL:', shopifyStoreUrl);
+// console.log('Payload URL Length:', shopifyStoreUrl.length);
+// console.log('Payload URL Char Codes:', shopifyStoreUrl.split('').map(c => c.charCodeAt(0)));
+
+    // Step 2: Compare store URL
+    // if (merchant.shopifyStoreUrl.trim().toLowerCase() === shopifyStoreUrl.trim().toLowerCase()) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: `Store mismatch: Provided Shopify store URL does not match the registered merchant store.`
+    //   });
+    // }
+    const normalizeUrl = (url) =>
+      he.decode(url) // decode HTML entities
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '') // remove protocol
+        .replace(/\/$/, '');         // remove trailing slash
+    
+    if (normalizeUrl(merchant.shopifyStoreUrl) !== normalizeUrl(shopifyStoreUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: `Store mismatch: Provided Shopify store URL does not match the registered merchant store.`,
+      });
+    }
+    
     const createdOrders = await Promise.all(
       orders.map(async (shopifyOrder) => {
-        // Check if order already exists
         const existingOrder = await Order.findOne({
           where: {
             shopifyOrderId: shopifyOrder.id,
@@ -96,17 +192,20 @@ const createOrders = async (req, res) => {
           }
         });
 
-        if (existingOrder) {
-          return existingOrder;
-        }
+        if (existingOrder) return existingOrder;
 
-        // Create new order with Shopify data
         return Order.create({
           merchantId,
           shopifyOrderId: shopifyOrder.id,
           shopifyStoreUrl,
           shopifyOrderData: shopifyOrder,
-          status: 'selected'
+          trackingId: generateTrackingId(), // ✅ generate trackingId
+          status: 'selected',
+          airwayBillNumber: null, // will remain null
+          riderId: null,
+          codCollected: null,
+          pickedUpAt: null,
+          deliveredAt: null
         }, { transaction });
       })
     );
@@ -122,6 +221,7 @@ const createOrders = async (req, res) => {
         customerName: order.shopifyOrderData.shipping_address?.name || order.shopifyOrderData.billing_address?.name,
         totalPrice: order.shopifyOrderData.total_price,
         status: order.status,
+        trackingId: order.trackingId,
         createdAt: order.createdAt
       }))
     });

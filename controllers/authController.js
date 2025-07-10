@@ -2,6 +2,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 const { Op } = require('sequelize');
 
 const generateToken = (userId) => {
@@ -48,48 +49,39 @@ const signup = async (req, res) => {
   }
 };
 
-// const login = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
+const adminSignup = async (req, res) => {
+  try {
+    const {email, password } = req.body;
 
-//     // Find user with parameterized query (prevents SQL injection)
-//     const user = await User.findOne({ 
-//       where: { 
-//         email,
-//         isActive: true 
-//       } 
-//     });
+    // Check if user exists
+    const existingUser = await Admin.findOne({ where: { email } });
+    if (existingUser) {
+      console.log(email)
+      console.log(existingUser.email)
+      return res.status(400).json({ error: 'Email already registered' });
+    }
 
-//     if (!user) {
-//       return res.status(401).json({ error: 'Invalid credentials' });
-//     }
+    // Create user
+    const user = await Admin.create({
+      email,
+      password
+    });
 
-//     const isPasswordValid = await bcrypt.compare(password, user.password);
-//     if (!isPasswordValid) {
-//       return res.status(401).json({ error: 'Invalid credentials' });
-//     }
+    const token = generateToken(user.id);
 
-//     // Update last login
-//     await user.update({ lastLogin: new Date() });
+    res.status(201).json({
+      user: {
+        id: user.id,
+        email: user.email
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+};
 
-//     const token = generateToken(user.id);
-
-//     res.json({
-//       user: {
-//         id: user.id,
-//         firstName: user.firstName,
-//         lastName: user.lastName,
-//         email: user.email,
-//         apiKey: user.apiKey,
-//         role: user.role
-//       },
-//       token
-//     });
-//   } catch (error) {
-//     console.error('Login error:', error);
-//     res.status(500).json({ error: 'Login failed' });
-//   }
-// };
 
 const login = async (req, res) => {
   try {
@@ -101,34 +93,43 @@ const login = async (req, res) => {
     }
 
     if (role === 'admin') {
-      // Admin login from env
-      const adminEmail = process.env.ADMIN_EMAIL;
-      const adminHashedPassword = process.env.ADMIN_HASHED_PASSWORD;
-
-      if (email !== adminEmail) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+      // ✅ Admin login from Admin table
+      const admin = await Admin.findOne({ where: { email } });
+  // console.log(`This is admin data ${admin}`);
+  // const normalizedEmail = email.trim().toLowerCase(); // normalize
+  // const admin = await Admin.findOne({ where: { email: normalizedEmail } });
+  // console.log('This is admin data', admin);
+      if (!admin) {
+        return res.status(401).json({ error: 'Email not found' });
       }
-
-      const isPasswordValid = await bcrypt.compare(password, adminHashedPassword);
+  // const admin = await Admin.findOne({ where: { email } });
+  // if (admin) {
+  //   return res.status(400).json({ error: 'Email already registered' });
+  // }
+      const isPasswordValid = await bcrypt.compare(password, admin.password);
       if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(401).json({ error: 'Invalid password' });
       }
 
-      const adminToken = generateToken('admin-static-id'); // Or use email as identifier
+      const token = generateToken(admin.id);
 
-      return res.json({
-        user: {
-          id: 'admin-static-id',
-          firstName: 'Admin',
-          lastName: 'User',
-          email: adminEmail,
-          role: 'admin'
-        },
-        token: adminToken
-      });
+      return res
+        .cookie('token', token, {
+          httpOnly: true,
+          sameSite: 'Lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000
+        })
+        .json({
+          user: {
+            id: admin.id,
+            email: admin.email,
+            role: 'admin'
+          },
+          token
+        });
     }
 
-    // Merchant login from DB
+    // ✅ Merchant login from User table
     const user = await User.findOne({
       where: {
         email,
@@ -149,50 +150,29 @@ const login = async (req, res) => {
 
     const token = generateToken(user.id);
 
-    res.json({
-      user: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        apiKey: user.apiKey,
-        role: user.role
-      },
-      token
-    });
+    res
+      .cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'Lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      })
+      .json({
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          apiKey: user.apiKey,
+          role: user.role
+        },
+        token
+      });
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 };
-
-// const verifyApiKey = async (req, res) => {
-//   try {
-//     const { apiKey, shopifyStoreUrl } = req.body;
-
-//     const user = await User.findOne({ 
-//       where: { 
-//         apiKey,
-//         isActive: true 
-//       } 
-//     });
-
-//     if (!user) {
-//       return res.status(401).json({ error: 'Invalid API key' });
-//     }
-
-//     // Update Shopify store URL
-//     await user.update({ shopifyStoreUrl });
-
-//     res.json({ 
-//       success: true, 
-//       message: 'API key verified successfully' 
-//     });
-//   } catch (error) {
-//     console.error('API key verification error:', error);
-//     res.status(500).json({ error: 'Verification failed' });
-//   }
-// };
 
 const verifyApiKey = async (req, res) => {
   try {
@@ -237,6 +217,7 @@ const verifyApiKey = async (req, res) => {
 
 module.exports = {
   signup,
+  adminSignup,
   login,
   verifyApiKey
 };

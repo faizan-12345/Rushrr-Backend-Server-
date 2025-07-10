@@ -38,8 +38,12 @@ const userValidationRules = {
     body('password').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
       .withMessage('Password must contain uppercase, lowercase, number and special character')
   ],
+  // login: [
+  //   body('email').isEmail().normalizeEmail(),
+  //   body('password').notEmpty()
+  // ]
   login: [
-    body('email').isEmail().normalizeEmail(),
+    body('email').isEmail().withMessage('Invalid email'),
     body('password').notEmpty()
   ]
 };

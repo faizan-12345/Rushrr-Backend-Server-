@@ -136,6 +136,7 @@
 // server.js
 const express = require('express');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const compression = require('compression');
 // const mongoSanitize = require('express-mongo-sanitize');
@@ -172,6 +173,8 @@ app.use(cors({
   credentials: true,
   optionsSuccessStatus: 200
 }));
+
+app.use(cookieParser());
 
 // Body parsing middleware with size limits
 app.use(express.json({ limit: '10mb' }));

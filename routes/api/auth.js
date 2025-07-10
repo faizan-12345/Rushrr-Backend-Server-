@@ -27,5 +27,9 @@ router.post('/verify-api-key',
   // authLimiter,
   authController.verifyApiKey
 );
+router.post('/verify-shopify-store', 
+  // authLimiter,
+  authController.checkShopifyStoreConnection
+);
 
 module.exports = router;

@@ -214,6 +214,36 @@ const verifyApiKey = async (req, res) => {
   }
 };
 
+// const checkShopifyStoreConnection = async (req, res) => {
+//   try {
+//     const { shopifyStoreUrl } = req.body;
+
+//     if (!shopifyStoreUrl) {
+//       return res.status(400).json({ error: 'shopifyStoreUrl is required' });
+//     }
+
+//     const user = await User.findOne({
+//       where: { shopifyStoreUrl }
+//     });
+
+//     if (user) {
+//       return res.status(200).json({ 
+//         success: true, 
+//         message: 'This Shopify store is already connected' 
+//       });
+//     }
+
+//     return res.status(404).json({ 
+//       success: false, 
+//       message: 'No connected store found. Please connect your Shopify store first.' 
+//     });
+
+//   } catch (error) {
+//     console.error('Error checking Shopify store connection:', error);
+//     return res.status(500).json({ error: 'Something went wrong while checking the store connection' });
+//   }
+// };
+
 const checkShopifyStoreConnection = async (req, res) => {
   try {
     const { shopifyStoreUrl } = req.body;
@@ -226,18 +256,25 @@ const checkShopifyStoreConnection = async (req, res) => {
       where: { shopifyStoreUrl }
     });
 
-    if (user) {
-      return res.status(200).json({ 
-        success: true, 
-        message: 'This Shopify store is already connected' 
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No connected store found. Please connect your Shopify store first.' 
       });
     }
 
-    return res.status(404).json({ 
-      success: false, 
-      message: 'No connected store found. Please connect your Shopify store first.' 
-    });
+    // 🔐 Generate JWT token for this user
+    const token = jwt.sign(
+      { id: user.id, role: user.role }, // Include role if needed
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
 
+    return res.status(200).json({
+      success: true,
+      message: 'Shopify store is already connected',
+      token
+    });
   } catch (error) {
     console.error('Error checking Shopify store connection:', error);
     return res.status(500).json({ error: 'Something went wrong while checking the store connection' });

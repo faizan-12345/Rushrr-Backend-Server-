@@ -67,21 +67,18 @@ router.get('/orders',
   adminController.getAllOrders
 );
 
-router.put('/orders/:id/fulfillment', 
+router.put('/order/fulfillment', 
   apiLimiter,
-  param('id').isUUID(),
-  body('fulfillmentMethod').isIn(['manual', 'postEx']),
+  body('fulfillmentMethod').isIn(['Rushrr', 'postEx']),
   validate,
   adminController.updateFulfillmentMethod
 );
 
 // Rider management
-router.post('/riders', 
+router.post('/create-rider', 
   apiLimiter,
   body('riderId').notEmpty().escape(),
   body('password').isLength({ min: 6 }),
-  body('name').notEmpty().escape(),
-  body('phone').notEmpty().escape(),
   validate,
   adminController.createRider
 );
@@ -91,9 +88,8 @@ router.get('/riders',
   adminController.getRiders
 );
 
-router.put('/riders/:id', 
+router.put('/update-rider', 
   apiLimiter,
-  param('id').isUUID(),
   validate,
   adminController.updateRider
 );

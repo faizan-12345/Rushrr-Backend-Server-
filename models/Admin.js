@@ -19,7 +19,11 @@ const Admin = sequelize.define('Admin', {
   password: {
     type: DataTypes.STRING,
     allowNull: false
-  }
+  },
+  role: {
+    type: DataTypes.ENUM('admin'),
+    defaultValue: 'admin'
+  },
 }, {
   hooks: {
     beforeCreate: async (admin) => {

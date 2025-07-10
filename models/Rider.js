@@ -20,11 +20,11 @@ const Rider = sequelize.define('Rider', {
   },
   name: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   },
   phone: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   },
   vehicleType: {
     type: DataTypes.STRING

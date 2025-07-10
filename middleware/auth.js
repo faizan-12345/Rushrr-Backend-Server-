@@ -27,43 +27,52 @@
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 
 // JWT Authentication
+
+
 // const authenticate = async (req, res, next) => {
 //   try {
-//     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+//     // Get token from Authorization header
+//     let token = req.header('Authorization')?.replace('Bearer ', '');
+
+//     // If not in header, try getting token from cookies
+//     if (!token && req.cookies && req.cookies.token) {
+//       token = req.cookies.token;
+//     }
+
 //     if (!token) {
-//       throw new Error();
+//       return res.status(401).json({ error: 'Authentication token not found.' });
 //     }
 
 //     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     const user = await User.findOne({ 
-//       where: { 
-//         id: decoded.id, 
-//         isActive: true 
-//       } 
+
+//     const user = await User.findOne({
+//       where: {
+//         id: decoded.id,
+//         isActive: true
+//       }
 //     });
 
 //     if (!user) {
-//       throw new Error();
+//       return res.status(401).json({ error: 'Invalid or expired token.' });
 //     }
 
 //     req.user = user;
 //     req.token = token;
 //     next();
 //   } catch (error) {
-//     res.status(401).json({ error: 'Please authenticate' });
+//     console.error('Authentication error:', error.message);
+//     return res.status(401).json({ error: 'Please authenticate' });
 //   }
 // };
 
 const authenticate = async (req, res, next) => {
   try {
-    // Get token from Authorization header
     let token = req.header('Authorization')?.replace('Bearer ', '');
 
-    // If not in header, try getting token from cookies
-    if (!token && req.cookies && req.cookies.token) {
+    if (!token && req.cookies?.token) {
       token = req.cookies.token;
     }
 
@@ -73,25 +82,51 @@ const authenticate = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findOne({
+    // Check in User (merchant) table first
+    let user = await User.findOne({
       where: {
         id: decoded.id,
         isActive: true
       }
     });
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid or expired token.' });
+    if (user) {
+      req.user = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      };
+      req.token = token;
+      return next();
     }
 
-    req.user = user;
-    req.token = token;
-    next();
+    // If not found in User, check Admin table
+    const admin = await Admin.findOne({
+      where: { id: decoded.id }
+    });
+
+    if (admin) {
+      req.user = {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role
+      };
+      req.token = token;
+      return next();
+    }
+
+    // If not found in either table
+    return res.status(401).json({ error: 'Invalid or expired token.' });
+
   } catch (error) {
     console.error('Authentication error:', error.message);
-    return res.status(401).json({ error: 'Please authenticate' });
+    return res.status(401).json({ error: 'Authentication failed.' });
   }
 };
+
+
 
 // Role-based access control
 const authorize = (...roles) => {

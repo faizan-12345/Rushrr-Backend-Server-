@@ -109,9 +109,10 @@ const Order = sequelize.define('Order', {
     ),
     defaultValue: 'selected'
   },
+  
   fulfillmentMethod: {
-    type: DataTypes.ENUM('manual', 'postEx'),
-    defaultValue: 'manual'
+    type: DataTypes.ENUM('Rushrr', 'postEx'),
+    defaultValue: 'Rushrr'
   },
   trackingId: {
     type: DataTypes.STRING,

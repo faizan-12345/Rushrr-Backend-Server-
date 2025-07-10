@@ -54,11 +54,11 @@ const orderValidationRules = {
     create: [
       body('orders').isArray().withMessage('Orders must be an array'),
       body('orders.*.id').isNumeric().withMessage('Shopify order ID must be numeric'),
-      body('shopifyStoreUrl').notEmpty().escape().withMessage('Shopify store URL is required')
+      // body('shopifyStoreUrl').notEmpty().escape().withMessage('Shopify store URL is required')
     ],
     update: [
-      param('id').isUUID(),
-      body('shopifyOrderData').optional().isObject()
+      // param('id').isUUID(),
+      // body('shopifyOrderData').optional().isObject()
     ],
     book: [
       body('orderIds').isArray().withMessage('Order IDs must be an array'),

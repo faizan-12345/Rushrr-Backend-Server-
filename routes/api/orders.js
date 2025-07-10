@@ -32,7 +32,7 @@ router.get('/',
   orderController.getOrders
 );
 
-router.put('/:id', 
+router.put('/update', 
   apiLimiter,
   authenticate, 
   authorize('merchant'),
@@ -45,7 +45,7 @@ router.post('/book',
   apiLimiter,
   authenticate, 
   authorize('merchant'),
-  orderController.bookOrders
+  orderController.bookOrder
 );
 
 router.get('/analytics', 

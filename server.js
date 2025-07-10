@@ -168,11 +168,17 @@ app.use(helmet({
 }));
 
 // CORS configuration
+// app.use(cors({
+//   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+//   credentials: true,
+//   optionsSuccessStatus: 200
+// }));
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+  origin: '*', // allow all origins
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+})); 
 
 app.use(cookieParser());
 

@@ -140,6 +140,11 @@ const Order = sequelize.define('Order', {
     allowNull: true,
     defaultValue: null
   },
+  codAmount: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: null
+  },  
   pickedUpAt: {
     type: DataTypes.DATE,
     allowNull: true

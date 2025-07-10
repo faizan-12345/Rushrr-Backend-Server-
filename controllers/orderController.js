@@ -602,16 +602,26 @@ const getOrderAnalytics = async (req, res) => {
           break;
       }
     });
+    
+    // const codCollected = await Order.count({
+    //   where: {
+    //     merchantId,
+    //     codCollected: true
+    //   }
+    // });
 
-    // Get COD collected count
-    const codCollected = await Order.count({
-      where: {
-        merchantId,
-        codCollected: true
-      }
-    });
+    // analyticsMap.codCollected = codCollected;
 
-    analyticsMap.codCollected = codCollected;
+// Get COD collected amount
+const codCollectedAmount = await Order.sum('codAmount', {
+  where: {
+    merchantId,
+    codCollected: true
+  }
+});
+
+analyticsMap.codCollected = codCollectedAmount || 0;
+
 
     res.json(analyticsMap);
   } catch (error) {

@@ -200,7 +200,7 @@ const createOrders = async (req, res) => {
           shopifyOrderId: shopifyOrder.id,
           shopifyStoreUrl,
           shopifyOrderData: shopifyOrder,
-          trackingId: generateTrackingId(), // ✅ generate trackingId
+          trackingId: null, // ✅ generate trackingId
           status: 'selected',
           airwayBillNumber: null, // will remain null
           riderId: null,

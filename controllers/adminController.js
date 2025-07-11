@@ -4,7 +4,7 @@ const Rider = require('../models/Rider');
 const User = require('../models/User');
 const OrderTracking = require('../models/OrderTracking');
 const { Op } = require('sequelize');
-const { fn, col } = require('sequelize');
+const { fn, col , where, literal} = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
@@ -382,11 +382,155 @@ const getAdminAnalytics = async (req, res) => {
   }
 };
 
+const getAllMerchantsWithTotalOrders = async (req, res) => {
+  try {
+    // Get all merchants
+    const merchants = await User.findAll({
+      where: { role: 'merchant' },
+      attributes: ['id', 'firstName', 'lastName', 'email','apiKey', 'shopifyStoreUrl', 'shopifyStoreName', 'isActive', 'createdAt']
+    });
+
+    // Get total non-selected orders grouped by merchantId
+    const orderCounts = await Order.findAll({
+      where: {
+        status: { [Op.not]: 'selected' }
+      },
+      attributes: [
+        'merchantId',
+        [fn('COUNT', col('id')), 'totalOrders']
+      ],
+      group: ['merchantId']
+    });
+
+    // Map merchantId to totalOrders
+    const orderCountMap = {};
+    orderCounts.forEach(order => {
+      orderCountMap[order.merchantId] = parseInt(order.dataValues.totalOrders);
+    });
+
+    // Attach totalOrders to each merchant
+    const merchantsWithOrders = merchants.map(merchant => {
+      return {
+        ...merchant.toJSON(),
+        totalOrders: orderCountMap[merchant.id] || 0
+      };
+    });
+
+    res.json({ success: true, merchants: merchantsWithOrders });
+  } catch (error) {
+    console.error('Get all merchants error:', error);
+    res.status(500).json({ error: 'Failed to fetch merchants' });
+  }
+};
+
+const getAdminPerformanceData = async (req, res) => {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Top Performing Customers (non-selected orders)
+    const topMerchantsRaw = await Order.findAll({
+      where: { status: { [Op.not]: 'selected' } },
+      attributes: [
+        'merchantId',
+        [fn('COUNT', col('id')), 'totalOrders']
+      ],
+      group: ['merchantId'],
+      // order: [[literal('totalOrders'), 'DESC']],
+      order: [[fn('COUNT', col('id')), 'DESC']],
+      limit: 10
+    });
+
+    const merchantIds = topMerchantsRaw.map(o => o.merchantId);
+    const orderCountMap = {};
+    topMerchantsRaw.forEach(o => {
+      orderCountMap[o.merchantId] = parseInt(o.dataValues.totalOrders);
+    });
+
+    const topMerchants = await User.findAll({
+      where: { id: merchantIds },
+      attributes: ['id', 'firstName', 'lastName', 'email', 'shopifyStoreUrl', 'shopifyStoreName', 'apiKey']
+    });
+
+    const topPerformingCustomers = topMerchants.map(m => ({
+      ...m.toJSON(),
+      totalOrders: orderCountMap[m.id] || 0
+    }));
+
+    // Today's Performance (using updatedAt)
+    const todayBookings = await Order.count({
+      where: {
+        status: { [Op.not]: 'selected' },
+        updatedAt: { [Op.gte]: twentyFourHoursAgo }
+      }
+    });
+
+    const todayDeliveries = await Order.count({
+      where: {
+        status: 'delivered',
+        updatedAt: { [Op.gte]: twentyFourHoursAgo }
+      }
+    });
+
+    const todayReturns = await Order.count({
+      where: {
+        status: 'returned',
+        updatedAt: { [Op.gte]: twentyFourHoursAgo }
+      }
+    });
+
+    // Performance Metrics
+    const totalProcessedOrders = await Order.count({
+      where: {
+        status: { [Op.not]: 'selected' }
+      }
+    });
+
+    const deliveredOrders = await Order.count({
+      where: {
+        status: 'delivered'
+      }
+    });
+
+    const returnedOrders = await Order.count({
+      where: {
+        status: 'returned'
+      }
+    });
+
+    const deliverySuccessRate = totalProcessedOrders > 0
+      ? ((deliveredOrders / totalProcessedOrders) * 100).toFixed(2)
+      : '0.00';
+
+    const returnRate = totalProcessedOrders > 0
+      ? ((returnedOrders / totalProcessedOrders) * 100).toFixed(2)
+      : '0.00';
+
+    res.json({
+      topPerformingCustomers,
+      todaysPerformance: {
+        newBookings: todayBookings,
+        deliveries: todayDeliveries,
+        returns: todayReturns
+      },
+      performanceMetrics: {
+        deliverySuccessRate: `${deliverySuccessRate}%`,
+        returnRate: `${returnRate}%`
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin performance analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch performance data' });
+  }
+};
+
 module.exports = {
   getAllOrders,
   updateFulfillmentMethod, // done 
   createRider, // done 
   getRiders, // done 
   updateRider, // done 
-  getAdminAnalytics // done 
+  getAdminAnalytics ,// done 
+  getAllMerchantsWithTotalOrders,
+  getAdminPerformanceData
 };

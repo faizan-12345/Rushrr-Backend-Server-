@@ -177,7 +177,7 @@ app.use(helmet({
 app.use(cors({
   origin: '*', // allow all origins
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type','Authorization'],
 })); 
 
 app.use(cookieParser());

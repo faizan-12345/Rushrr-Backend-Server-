@@ -100,4 +100,14 @@ router.get('/analytics',
   adminController.getAdminAnalytics
 );
 
+router.get('/merchants-with-orders', 
+  apiLimiter,
+  adminController.getAllMerchantsWithTotalOrders
+);
+
+router.get('/performance-data', 
+  apiLimiter,
+  adminController.getAdminPerformanceData
+);
+
 module.exports = router;

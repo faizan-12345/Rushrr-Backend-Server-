@@ -70,4 +70,9 @@ router.get('/shopify',
   orderController.getOrders
 );
 
+router.post('/tracking', 
+  // apiLimiter,
+  orderController.getOrderTrackingByTrackingId
+);
+
 module.exports = router;

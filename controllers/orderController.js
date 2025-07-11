@@ -630,10 +630,68 @@ analyticsMap.codCollected = codCollectedAmount || 0;
   }
 };
 
+const getOrderTrackingByTrackingId = async (req, res) => {
+  try {
+    const { trackingId } = req.body;
+
+    if (!trackingId) {
+      return res.status(400).json({ error: 'Tracking ID is required' });
+    }
+
+    // Step 1: Find the order using trackingId
+    const order = await Order.findOne({ where: { trackingId } });
+
+    if (!order) {
+      return res.status(404).json({ message: 'This order is not booked yet' });
+    }
+
+    // Step 2: Fetch all tracking entries related to the order, sorted by updatedAt DESC
+    const trackingHistory = await OrderTracking.findAll({
+      where: { orderId: order.id },
+      order: [['updatedAt', 'DESC']]
+    });
+
+    // Step 3: Format tracking history
+    const formattedTracking = trackingHistory.map((track, index) => ({
+      id: track.id,
+      status: track.status,
+      location: track.location,
+      description: track.description,
+      riderId: track.riderId,
+      timestamp: track.timestamp,
+      updatedAt: track.updatedAt,
+      currentStatus: index === 0 // Only latest tracking entry gets currentStatus: true
+    }));
+
+    // Step 4: Response with order and tracking history
+    return res.json({
+      success: true,
+      order: {
+        id: order.id,
+        trackingId: order.trackingId,
+        customerName: order.customerName || null,
+        shopifyOrderId: order.shopifyOrderId,
+        status: order.status,
+        fulfillmentMethod: order.fulfillmentMethod,
+        codAmount: order.codAmount,
+        deliveredAt: order.deliveredAt,
+        pickedUpAt: order.pickedUpAt,
+        currentStatus: order.status
+      },
+      trackingHistory: formattedTracking
+    });
+
+  } catch (error) {
+    console.error('Error fetching tracking info:', error);
+    return res.status(500).json({ error: 'Something went wrong while fetching tracking data' });
+  }
+};
+
 module.exports = {
   createOrders,
   getOrders,
   updateOrder,
   bookOrder,
-  getOrderAnalytics
+  getOrderAnalytics,
+  getOrderTrackingByTrackingId
 };

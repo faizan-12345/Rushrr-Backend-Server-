@@ -49,7 +49,7 @@ router.post('/book',
 );
 
 router.get('/analytics', 
-  apiLimiter,
+  // apiLimiter,
   authenticate, 
   authorize('merchant'),
   orderController.getOrderAnalytics
@@ -65,7 +65,7 @@ router.post('/shopify',
 );
 
 router.get('/shopify', 
-  apiLimiter,
+  // apiLimiter,
   validateApiKey,
   orderController.getOrders
 );

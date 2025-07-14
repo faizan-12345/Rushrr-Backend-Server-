@@ -63,12 +63,12 @@ router.use(authenticate, authorize('admin'));
 
 // Order management
 router.get('/orders', 
-  apiLimiter,
+  // apiLimiter,
   adminController.getAllOrders
 );
 
 router.put('/order/fulfillment', 
-  apiLimiter,
+  // apiLimiter,
   body('fulfillmentMethod').isIn(['Rushrr', 'postEx']),
   validate,
   adminController.updateFulfillmentMethod
@@ -76,7 +76,7 @@ router.put('/order/fulfillment',
 
 // Rider management
 router.post('/create-rider', 
-  apiLimiter,
+  // apiLimiter,
   body('riderId').notEmpty().escape(),
   body('password').isLength({ min: 6 }),
   validate,
@@ -84,29 +84,29 @@ router.post('/create-rider',
 );
 
 router.get('/riders', 
-  apiLimiter,
+  // apiLimiter,
   adminController.getRiders
 );
 
 router.put('/update-rider', 
-  apiLimiter,
+  // apiLimiter,
   validate,
   adminController.updateRider
 );
 
 // Analytics
 router.get('/analytics', 
-  apiLimiter,
+  // apiLimiter,
   adminController.getAdminAnalytics
 );
 
 router.get('/merchants-with-orders', 
-  apiLimiter,
+  // apiLimiter,
   adminController.getAllMerchantsWithTotalOrders
 );
 
 router.get('/performance-data', 
-  apiLimiter,
+  // apiLimiter,
   adminController.getAdminPerformanceData
 );
 

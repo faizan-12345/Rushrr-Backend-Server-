@@ -11,9 +11,48 @@ const generateToken = (userId) => {
   });
 };
 
+// const signup = async (req, res) => {
+//   try {
+//     const { firstName, lastName, email, password } = req.body;
+
+//     // Check if user exists
+//     const existingUser = await User.findOne({ where: { email } });
+//     if (existingUser) {
+//       return res.status(400).json({ error: 'Email already registered' });
+//     }
+
+//     // Create user
+//     const user = await User.create({
+//       firstName,
+//       lastName,
+//       email,
+//       password,
+//       role: 'merchant'
+//     });
+
+//     const token = generateToken(user.id);
+
+//     res.status(201).json({
+//       user: {
+//         id: user.id,
+//         firstName: user.firstName,
+//         lastName: user.lastName,
+//         email: user.email,
+//         apiKey: user.apiKey,
+//         role: user.role
+//       },
+//       token
+//     });
+//   } catch (error) {
+//     console.error('Signup error:', error);
+//     res.status(500).json({ error: 'Failed to create account' });
+//   }
+// };
+
+
 const signup = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, email, password, shopifyStoreUrl, shopifyStoreName } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ where: { email } });
@@ -21,14 +60,25 @@ const signup = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Create user
-    const user = await User.create({
+    // Build user data object with optional Shopify fields
+    const userData = {
       firstName,
       lastName,
       email,
       password,
       role: 'merchant'
-    });
+    };
+
+    if (shopifyStoreUrl) {
+      userData.shopifyStoreUrl = shopifyStoreUrl;
+    }
+
+    if (shopifyStoreName) {
+      userData.shopifyStoreName = shopifyStoreName;
+    }
+
+    // Create user
+    const user = await User.create(userData);
 
     const token = generateToken(user.id);
 
@@ -39,7 +89,9 @@ const signup = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         apiKey: user.apiKey,
-        role: user.role
+        role: user.role,
+        shopifyStoreUrl: user.shopifyStoreUrl,
+        shopifyStoreName: user.shopifyStoreName
       },
       token
     });

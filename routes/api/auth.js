@@ -5,13 +5,13 @@ const { userValidationRules, validate } = require('../../utils/validators');
 const { authLimiter, authenticate } = require('../../middleware/auth');
 
 router.post('/signup', 
-  authLimiter,
+  // authLimiter,
   userValidationRules.signup, 
   validate, 
   authController.signup
 );
 router.post('/admin-signup', 
-  authLimiter,
+  // authLimiter,
   validate, 
   authController.adminSignup
 );
@@ -32,12 +32,12 @@ router.post('/verify-shopify-store',
   authController.checkShopifyStoreConnection
 );
 router.get('/merchant-info', 
-  authLimiter,
+  // authLimiter,
   authenticate,
   authController.getMerchantInfo
 );
 router.post('/logout', 
-  authLimiter,
+  // authLimiter,
   // authenticate,
   authController.logout
 );

@@ -51,7 +51,7 @@ const { validate } = require('../../utils/validators'); // Import validate separ
 
 // Rider authentication
 router.post('/login', 
-  authLimiter,
+  // authLimiter,
   body('riderId').notEmpty().escape(),
   body('password').notEmpty(),
   validate,
@@ -60,7 +60,7 @@ router.post('/login',
 
 // Rider routes (requires rider authentication)
 router.post('/scan-order', 
-  apiLimiter,
+  // apiLimiter,
   authenticate,
   authorize('rider'),
   body('airwayBillNumber').notEmpty().escape(),
@@ -81,7 +81,7 @@ router.put('/order-status',
 );
 
 router.put('/location', 
-  apiLimiter,
+  // apiLimiter,
   authenticate,
   body('location').isObject(),
   validate,
@@ -89,14 +89,14 @@ router.put('/location',
 );
 
 router.get('/info', 
-  apiLimiter,
+  // apiLimiter,
   authenticate,
   authorize('rider'),
   riderController.getRiderInfo
 );
 
 router.get('/rider/orders', 
-  apiLimiter,
+    // apiLimiter,
   authenticate,
   authorize('rider'),
   riderController.getAllOrdersForRider

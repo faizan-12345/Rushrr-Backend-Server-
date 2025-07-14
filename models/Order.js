@@ -116,7 +116,7 @@ const Order = sequelize.define('Order', {
   },
   trackingId: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
     unique: true
   },
   airwayBillNumber: {

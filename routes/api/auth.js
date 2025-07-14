@@ -36,5 +36,9 @@ router.get('/merchant-info',
   authenticate,
   authController.getMerchantInfo
 );
-
+router.post('/logout', 
+  authLimiter,
+  // authenticate,
+  authController.logout
+);
 module.exports = router;

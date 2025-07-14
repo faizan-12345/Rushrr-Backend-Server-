@@ -49,6 +49,18 @@ const signup = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+  try {
+    // Client should discard the token; nothing to do on server if stateless
+    res.clearCookie('token', { httpOnly: true, secure: true });
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Failed to logout' });
+  }
+};
+
+
 const adminSignup = async (req, res) => {
   try {
     const {email, password } = req.body;
@@ -308,5 +320,6 @@ module.exports = {
   login,
   verifyApiKey,
   checkShopifyStoreConnection,
-  getMerchantInfo
+  getMerchantInfo,
+  logout
 };

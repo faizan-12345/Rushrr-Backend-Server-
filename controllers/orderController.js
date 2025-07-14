@@ -229,9 +229,10 @@ const createOrders = async (req, res) => {
   } catch (error) {
     await transaction.rollback();
     console.error('Create orders error:', error);
-    res.status(500).json({ error: 'Failed to create orders' });
+    res.status(500).json({ error: error.message });
   }
 };
+
 
 // const getOrders = async (req, res) => {
 //   try {
@@ -250,7 +251,6 @@ const createOrders = async (req, res) => {
 //         {
 //           model: OrderTracking,
 //           as: 'tracking',
-//           limit: 5,
 //           order: [['timestamp', 'DESC']]
 //         }
 //       ],
@@ -259,25 +259,40 @@ const createOrders = async (req, res) => {
 //       order: [['createdAt', 'DESC']]
 //     });
 
-//     // Format response with Shopify data
-//     const formattedOrders = rows.map(order => ({
-//       id: order.id,
-//       shopifyOrderId: order.shopifyOrderId,
-//       orderNumber: order.shopifyOrderData.order_number,
-//       customerName: order.shopifyOrderData.shipping_address?.name || order.shopifyOrderData.billing_address?.name,
-//       customerEmail: order.shopifyOrderData.email || order.shopifyOrderData.contact_email,
-//       shippingAddress: order.shopifyOrderData.shipping_address,
-//       totalPrice: order.shopifyOrderData.total_price,
-//       currency: order.shopifyOrderData.currency,
-//       lineItems: order.shopifyOrderData.line_items,
-//       status: order.status,
-//       trackingId: order.trackingId,
-//       airwayBillNumber: order.airwayBillNumber,
-//       tracking: order.tracking,
-//       createdAt: order.createdAt
-//     }));
+//     const formattedOrders = rows.map(order => {
+//       const data = order.shopifyOrderData || {};
+//       return {
+//         id: order.id,
+//         merchantId: order.merchantId,
+//         shopifyOrderId: order.shopifyOrderId,
+//         shopifyStoreUrl: order.shopifyStoreUrl,
+//         status: order.status,
+//         fulfillmentMethod: order.fulfillmentMethod,
+//         trackingId: order.trackingId,
+//         airwayBillNumber: order.airwayBillNumber,
+//         failureReason: order.failureReason,
+//         riderId: order.riderId,
+//         codCollected: order.codCollected,
+//         pickedUpAt: order.pickedUpAt,
+//         deliveredAt: order.deliveredAt,
+//         createdAt: order.createdAt,
+//         updatedAt: order.updatedAt,
+
+//         // Flattened Shopify Data
+//         orderNumber: data.order_number || '',
+//         customerName: data.shipping_address?.name || data.billing_address?.name || '',
+//         customerEmail: data.email || data.contact_email || '',
+//         shippingAddress: data.shipping_address || null,
+//         billingAddress: data.billing_address || null,
+//         totalPrice: data.total_price || null,
+//         currency: data.currency || '',
+//         lineItems: data.line_items || [],
+//         tracking: order.tracking || []
+//       };
+//     });
 
 //     res.json({
+//       success: true,
 //       orders: formattedOrders,
 //       pagination: {
 //         total: count,
@@ -290,79 +305,6 @@ const createOrders = async (req, res) => {
 //     res.status(500).json({ error: 'Failed to fetch orders' });
 //   }
 // };
-
-
-const getOrders = async (req, res) => {
-  try {
-    const { status, page = 1, limit = 20 } = req.query;
-    const merchantId = req.user.id;
-    const offset = (page - 1) * limit;
-
-    const whereClause = { merchantId };
-    if (status) {
-      whereClause.status = status;
-    }
-
-    const { count, rows } = await Order.findAndCountAll({
-      where: whereClause,
-      include: [
-        {
-          model: OrderTracking,
-          as: 'tracking',
-          order: [['timestamp', 'DESC']]
-        }
-      ],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
-    });
-
-    const formattedOrders = rows.map(order => {
-      const data = order.shopifyOrderData || {};
-      return {
-        id: order.id,
-        merchantId: order.merchantId,
-        shopifyOrderId: order.shopifyOrderId,
-        shopifyStoreUrl: order.shopifyStoreUrl,
-        status: order.status,
-        fulfillmentMethod: order.fulfillmentMethod,
-        trackingId: order.trackingId,
-        airwayBillNumber: order.airwayBillNumber,
-        failureReason: order.failureReason,
-        riderId: order.riderId,
-        codCollected: order.codCollected,
-        pickedUpAt: order.pickedUpAt,
-        deliveredAt: order.deliveredAt,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-
-        // Flattened Shopify Data
-        orderNumber: data.order_number || '',
-        customerName: data.shipping_address?.name || data.billing_address?.name || '',
-        customerEmail: data.email || data.contact_email || '',
-        shippingAddress: data.shipping_address || null,
-        billingAddress: data.billing_address || null,
-        totalPrice: data.total_price || null,
-        currency: data.currency || '',
-        lineItems: data.line_items || [],
-        tracking: order.tracking || []
-      };
-    });
-
-    res.json({
-      success: true,
-      orders: formattedOrders,
-      pagination: {
-        total: count,
-        page: parseInt(page),
-        pages: Math.ceil(count / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Get orders error:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
-};
 
 // const updateOrder = async (req, res) => {
 //   try {
@@ -460,6 +402,90 @@ const getOrders = async (req, res) => {
 //   }
 // };
 
+
+const getOrders = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const merchantId = req.user.id;
+    const offset = (page - 1) * limit;
+
+    const whereClause = { merchantId };
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const { count, rows } = await Order.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: OrderTracking,
+          as: 'tracking',
+          order: [['timestamp', 'DESC']]
+        }
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      orders: rows, // return full unformatted order objects
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get orders error:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+};
+
+// const updateOrder = async (req, res) => {
+//   try {
+//     const { id } = req.query;
+//     const updateFields = req.body;
+//     const merchantId = req.user.id;
+
+//     if (!updateFields || Object.keys(updateFields).length === 0) {
+//       return res.status(400).json({ error: 'No fields provided for update' });
+//     }
+//  console.log(`This is the id ${id}`)
+//     const order = await Order.findOne({
+//       where: { id, merchantId }
+//     });
+
+//     if (!order) {
+//       return res.status(404).json({ error: 'Order not found' });
+//     }
+
+//     // Ensure shopifyOrderData exists on the order
+//     const existingData = order.shopifyOrderData || {};
+
+//     // Merge only the fields passed into the existing shopifyOrderData
+//     const updatedShopifyData = { ...existingData, ...updateFields };
+
+//     await order.update({ shopifyOrderData: updatedShopifyData });
+
+//     res.json({
+//       success: true,
+//       order: {
+//         id: order.id,
+//         shopifyOrderId: order.shopifyOrderId,
+//         orderNumber: updatedShopifyData.order_number,
+//         status: order.status,
+//         shopifyOrderData: updatedShopifyData
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Update order error:', error);
+//     res.status(500).json({ error: 'Failed to update order' });
+//   }
+// };
+
+
 const updateOrder = async (req, res) => {
   try {
     const { id } = req.query;
@@ -469,7 +495,7 @@ const updateOrder = async (req, res) => {
     if (!updateFields || Object.keys(updateFields).length === 0) {
       return res.status(400).json({ error: 'No fields provided for update' });
     }
- console.log(`This is the id ${id}`)
+
     const order = await Order.findOne({
       where: { id, merchantId }
     });
@@ -478,10 +504,26 @@ const updateOrder = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Ensure shopifyOrderData exists on the order
     const existingData = order.shopifyOrderData || {};
 
-    // Merge only the fields passed into the existing shopifyOrderData
+    // ✅ Define allowed keys in shopifyOrderData
+    const allowedKeys = [
+      'order_number', 'email', 'contact_email', 'shipping_address',
+      'billing_address', 'total_price', 'currency', 'line_items'
+    ];
+
+    // ✅ Validate keys in the update request
+    const invalidKeys = Object.keys(updateFields).filter(
+      key => !allowedKeys.includes(key)
+    );
+
+    if (invalidKeys.length > 0) {
+      return res.status(400).json({
+        error: `Invalid field(s): ${invalidKeys.join(', ')}`,
+        message: 'Update failed. Only allowed fields can be updated in shopifyOrderData.'
+      });
+    }
+
     const updatedShopifyData = { ...existingData, ...updateFields };
 
     await order.update({ shopifyOrderData: updatedShopifyData });

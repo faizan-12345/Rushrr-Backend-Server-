@@ -17,32 +17,32 @@ const { orderValidationRules, validate } = require('../../utils/validators');
 
 // Merchant routes
 router.post('/create-order', 
-  apiLimiter,
+  // apiLimiter,
   authenticate, 
-  authorize('merchant'),
+  authorize('merchant', 'admin'),
 orderValidationRules.create,
   validate,
   orderController.createOrders
 );
 
 router.get('/', 
-  apiLimiter,
+  // apiLimiter,
   authenticate, 
   authorize('merchant', 'admin'),
   orderController.getOrders
 );
 
 router.put('/update', 
-  apiLimiter,
+  // apiLimiter,
   authenticate, 
-  authorize('merchant'),
+  authorize('merchant', 'admin'),
   orderValidationRules.update,
   validate,
   orderController.updateOrder
 );
 
 router.post('/book', 
-  apiLimiter,
+  // apiLimiter,
   authenticate, 
   authorize('merchant'),
   orderController.bookOrder
@@ -57,7 +57,7 @@ router.get('/analytics',
 
 // Shopify API routes (using API key)
 router.post('/shopify', 
-  apiLimiter,
+  // apiLimiter,
   validateApiKey,
   orderValidationRules.create,
   validate,

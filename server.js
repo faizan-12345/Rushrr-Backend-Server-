@@ -239,6 +239,11 @@ app.use((err, req, res, next) => {
   });
 });
 
+app.get('/test-me', (req, res) => {
+  res.status(200).json({ message: 'Backend is working fine 🎉' });
+});
+
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

@@ -145,6 +145,7 @@ const hpp = require('hpp');
 // const { sequelize, setupAssociations } = require('./config/database');
 // server.js
 const sequelize = require('./config/database');
+const ngrok = require('@ngrok/ngrok');
 const { setupAssociations } = require('./config/database');
 require('dotenv').config();
 
@@ -252,6 +253,30 @@ app.use((req, res) => {
 // Database connection and server start
 const PORT = process.env.PORT || 5000;
 
+// const startServer = async () => {
+//   try {
+//     // Test database connection
+//     await sequelize.authenticate();
+//     console.log('Database connection established successfully.');
+
+//     // Set up model associations
+//     setupAssociations();
+
+//     // Sync database (use migrations in production)
+//     if (process.env.NODE_ENV !== 'production') {
+//       await sequelize.sync({ alter: true });
+//       console.log('Database synchronized.');
+//     }
+
+//     app.listen(PORT, () => {
+//       console.log(`Server running on port ${PORT}`);
+//     });
+//   } catch (error) {
+//     console.error('Unable to start server:', error);
+//     process.exit(1);
+//   }
+// };
+
 const startServer = async () => {
   try {
     // Test database connection
@@ -267,14 +292,24 @@ const startServer = async () => {
       console.log('Database synchronized.');
     }
 
-    app.listen(PORT, () => {
+    // Start Express app
+    const server = app.listen(PORT, async () => {
       console.log(`Server running on port ${PORT}`);
+
+      // Start Ngrok tunnel
+      const tunnel = await ngrok.connect({
+        addr: PORT,
+        authtoken: process.env.NGROK_AUTHTOKEN,
+      });
+
+      console.log(`🌐 Ngrok Tunnel URL: ${tunnel.url()}`);
     });
   } catch (error) {
     console.error('Unable to start server:', error);
     process.exit(1);
   }
 };
+
 
 startServer();
 

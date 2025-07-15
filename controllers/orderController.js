@@ -443,48 +443,6 @@ const getOrders = async (req, res) => {
   }
 };
 
-// const updateOrder = async (req, res) => {
-//   try {
-//     const { id } = req.query;
-//     const updateFields = req.body;
-//     const merchantId = req.user.id;
-
-//     if (!updateFields || Object.keys(updateFields).length === 0) {
-//       return res.status(400).json({ error: 'No fields provided for update' });
-//     }
-//  console.log(`This is the id ${id}`)
-//     const order = await Order.findOne({
-//       where: { id, merchantId }
-//     });
-
-//     if (!order) {
-//       return res.status(404).json({ error: 'Order not found' });
-//     }
-
-//     // Ensure shopifyOrderData exists on the order
-//     const existingData = order.shopifyOrderData || {};
-
-//     // Merge only the fields passed into the existing shopifyOrderData
-//     const updatedShopifyData = { ...existingData, ...updateFields };
-
-//     await order.update({ shopifyOrderData: updatedShopifyData });
-
-//     res.json({
-//       success: true,
-//       order: {
-//         id: order.id,
-//         shopifyOrderId: order.shopifyOrderId,
-//         orderNumber: updatedShopifyData.order_number,
-//         status: order.status,
-//         shopifyOrderData: updatedShopifyData
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Update order error:', error);
-//     res.status(500).json({ error: 'Failed to update order' });
-//   }
-// };
-
 
 const updateOrder = async (req, res) => {
   try {
@@ -545,6 +503,81 @@ const updateOrder = async (req, res) => {
 };
 
 
+// const updateOrder = async (req, res) => {
+//   try {
+//     const { id, updateTracking } = req.query;
+//     const merchantId = req.user.id;
+//     const updateFields = req.body;
+
+//     const order = await Order.findOne({
+//       where: { id, merchantId }
+//     });
+
+//     if (!order) {
+//       return res.status(404).json({ error: 'Order not found' });
+//     }
+
+//     // ✅ If query param updateTracking=true → update only trackingId
+//     if (updateTracking === 'true') {
+//       const { trackingId } = updateFields;
+
+//       if (!trackingId || typeof trackingId !== 'string') {
+//         return res.status(400).json({ error: 'Valid trackingId is required' });
+//       }
+
+//       await order.update({ trackingId });
+
+//       return res.json({
+//         success: true,
+//         message: 'Tracking ID updated successfully',
+//         trackingId: order.trackingId
+//       });
+//     }
+
+//     // ✅ Otherwise update fields in shopifyOrderData
+//     if (!updateFields || Object.keys(updateFields).length === 0) {
+//       return res.status(400).json({ error: 'No fields provided for update' });
+//     }
+
+//     const existingData = order.shopifyOrderData || {};
+
+//     const allowedKeys = [
+//       'order_number', 'email', 'contact_email', 'shipping_address',
+//       'billing_address', 'total_price', 'currency', 'line_items'
+//     ];
+
+//     const invalidKeys = Object.keys(updateFields).filter(
+//       key => !allowedKeys.includes(key)
+//     );
+
+//     if (invalidKeys.length > 0) {
+//       return res.status(400).json({
+//         error: `Invalid field(s): ${invalidKeys.join(', ')}`,
+//         message: 'Update failed. Only allowed fields can be updated in shopifyOrderData.'
+//       });
+//     }
+
+//     const updatedShopifyData = { ...existingData, ...updateFields };
+
+//     await order.update({ shopifyOrderData: updatedShopifyData });
+
+//     return res.json({
+//       success: true,
+//       order: {
+//         id: order.id,
+//         shopifyOrderId: order.shopifyOrderId,
+//         orderNumber: updatedShopifyData.order_number,
+//         status: order.status,
+//         shopifyOrderData: updatedShopifyData
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Update order error:', error);
+//     res.status(500).json({ error: 'Failed to update order' });
+//   }
+// };
+
+
 const bookOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -564,13 +597,11 @@ const bookOrder = async (req, res) => {
       return res.status(400).json({ error: 'Order not found or not in selected status' });
     }
 
-    const airwayBillNumber = generateAirwayBill();
-    const trackingId = generateTrackingId();
+    // const airwayBillNumber = generateAirwayBill();
+    // const trackingId = generateTrackingId();
 
     await order.update({
       status: 'booked',
-      airwayBillNumber,
-      trackingId
     }, { transaction });
 
     await OrderTracking.create({
@@ -729,11 +760,45 @@ const getOrderTrackingByTrackingId = async (req, res) => {
   }
 };
 
+const updateOrderTrackingId = async (req, res) => {
+  try {
+    const { id } = req.query;
+    const { trackingId } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Order ID is required in query' });
+    }
+
+    if (!trackingId || typeof trackingId !== 'string') {
+      return res.status(400).json({ error: 'Valid trackingId is required in body' });
+    }
+
+    const order = await Order.findByPk(id);
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    await order.update({ trackingId });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Tracking ID updated successfully',
+      trackingId: order.trackingId
+    });
+  } catch (error) {
+    console.error('Error updating tracking ID:', error);
+    return res.status(500).json({ error: 'Failed to update tracking ID' });
+  }
+};
+
+
 module.exports = {
   createOrders,
   getOrders,
   updateOrder,
   bookOrder,
   getOrderAnalytics,
-  getOrderTrackingByTrackingId
+  getOrderTrackingByTrackingId,
+  updateOrderTrackingId
 };

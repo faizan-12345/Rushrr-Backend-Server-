@@ -54,6 +54,7 @@
 // routes/api/admin.js
 const router = require('express').Router();
 const adminController = require('../../controllers/adminController');
+const orderController = require('../../controllers/orderController');
 const { authenticate, authorize, apiLimiter } = require('../../middleware/auth');
 const { body, param } = require('express-validator'); // Import from express-validator
 const { validate } = require('../../utils/validators'); // Import validate separately
@@ -110,4 +111,15 @@ router.get('/performance-data',
   adminController.getAdminPerformanceData
 );
 
+router.put('/update-pickup-address-code', 
+  // apiLimiter,
+  validate,
+  adminController.updatePickupAddressCode
+);
+
+router.put('/update-order-tracking-id', 
+  // apiLimiter,
+  validate,
+  orderController.updateOrderTrackingId
+);
 module.exports = router;

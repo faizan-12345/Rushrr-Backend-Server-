@@ -297,12 +297,12 @@ const startServer = async () => {
       console.log(`Server running on port ${PORT}`);
 
       // Start Ngrok tunnel
-      const tunnel = await ngrok.connect({
-        addr: PORT,
-        authtoken: process.env.NGROK_AUTHTOKEN,
-      });
+      // const tunnel = await ngrok.connect({
+      //   addr: PORT,
+      //   authtoken: process.env.NGROK_AUTHTOKEN,
+      // });
 
-      console.log(`🌐 Ngrok Tunnel URL: ${tunnel.url()}`);
+      // console.log(`🌐 Ngrok Tunnel URL: ${tunnel.url()}`);
     });
   } catch (error) {
     console.error('Unable to start server:', error);

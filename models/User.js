@@ -56,6 +56,10 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  pickupAddressCode: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

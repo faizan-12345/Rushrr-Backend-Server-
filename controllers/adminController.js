@@ -387,7 +387,7 @@ const getAllMerchantsWithTotalOrders = async (req, res) => {
     // Get all merchants
     const merchants = await User.findAll({
       where: { role: 'merchant' },
-      attributes: ['id', 'firstName', 'lastName', 'email','apiKey', 'shopifyStoreUrl', 'shopifyStoreName', 'isActive', 'createdAt']
+      attributes: ['id', 'firstName', 'lastName', 'email','apiKey', 'shopifyStoreUrl', 'shopifyStoreName', 'pickupAddressCode', 'isActive', 'createdAt']
     });
 
     // Get total non-selected orders grouped by merchantId
@@ -524,6 +524,31 @@ const getAdminPerformanceData = async (req, res) => {
   }
 };
 
+const updatePickupAddressCode = async (req, res) => {
+  try {
+    const {userId} = req.body; // assuming you're using auth middleware to attach user info
+    const { pickupAddressCode } = req.body;
+
+    if (!pickupAddressCode || typeof pickupAddressCode !== 'string') {
+      return res.status(400).json({ error: 'pickupAddressCode must be a non-empty string' });
+    }
+
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.pickupAddressCode = pickupAddressCode;
+    await user.save();
+
+    return res.status(200).json({ message: 'Pickup address code updated successfully', pickupAddressCode });
+  } catch (error) {
+    console.error('Error updating pickup address code:', error);
+    return res.status(500).json({ error: 'Failed to update pickup address code' });
+  }
+};
+
 module.exports = {
   getAllOrders,
   updateFulfillmentMethod, // done 
@@ -532,5 +557,6 @@ module.exports = {
   updateRider, // done 
   getAdminAnalytics ,// done 
   getAllMerchantsWithTotalOrders,
-  getAdminPerformanceData
+  getAdminPerformanceData,
+  updatePickupAddressCode
 };

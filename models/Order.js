@@ -110,9 +110,19 @@ const Order = sequelize.define('Order', {
     defaultValue: 'selected'
   },
   
+  // fulfillmentMethod: {
+  //   type: DataTypes.ENUM('Rushrr', 'postEx'),
+  //   defaultValue: 'Rushrr'
+  // },
   fulfillmentMethod: {
-    type: DataTypes.ENUM('Rushrr', 'postEx'),
-    defaultValue: 'Rushrr'
+    type: DataTypes.ENUM('postEx'),
+    allowNull: true,
+    validate: {
+      isIn: {
+        args: [['postEx']],
+        msg: 'Only "postEx" is allowed as a value if provided.'
+      }
+    }
   },
   trackingId: {
     type: DataTypes.STRING,

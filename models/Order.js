@@ -104,26 +104,26 @@ const Order = sequelize.define('Order', {
   },
   status: {
     type: DataTypes.ENUM(
-      'selected', 'booked', 'picked_up', 'in_warehouse',
+      'unbooked', 'booked', 'picked_up', 'in_warehouse',
       'in_transit', 'delivered', 'failed', 'returned'
     ),
-    defaultValue: 'selected'
+    defaultValue: 'unbooked'
   },
   
-  // fulfillmentMethod: {
-  //   type: DataTypes.ENUM('Rushrr', 'postEx'),
-  //   defaultValue: 'Rushrr'
-  // },
   fulfillmentMethod: {
-    type: DataTypes.ENUM('postEx'),
-    allowNull: true,
-    validate: {
-      isIn: {
-        args: [['postEx']],
-        msg: 'Only "postEx" is allowed as a value if provided.'
-      }
-    }
+    type: DataTypes.ENUM('Rushrr', 'postEx'),
+    defaultValue: 'Rushrr'
   },
+  // fulfillmentMethod: {
+  //   type: DataTypes.ENUM('postEx'),
+  //   allowNull: true,
+  //   validate: {
+  //     isIn: {
+  //       args: [['postEx']],
+  //       msg: 'Only "postEx" is allowed as a value if provided.'
+  //     }
+  //   }
+  // },
   trackingId: {
     type: DataTypes.STRING,
     allowNull: true,

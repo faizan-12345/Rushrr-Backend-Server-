@@ -71,6 +71,7 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
 const OrderTracking = require('../models/OrderTracking');
+const Admin = require('../models/Admin');
 // const { sequelize } = require('../config/database');
 const sequelize = require('../config/database'); // ✅ Correct
 const { Op } = require('sequelize');
@@ -79,130 +80,90 @@ const generateTrackingId = require('../utils/generateTrackingId');
 const generateAirwayBill = require('../utils/generateAirwayBill');
 const he = require('he'); // Add at top
 
-// const createOrders = async (req, res) => {
-//   const transaction = await sequelize.transaction();
-  
-//   try {
-//     const { orders, shopifyStoreUrl } = req.body;
-//     const merchantId = req.user.id;
-
-//     if (!shopifyStoreUrl) {
-//       return res.status(400).json({ error: 'Shopify store URL is required' });
-//     }
-
-//     // Process each Shopify order
-//     const createdOrders = await Promise.all(
-//       orders.map(async (shopifyOrder) => {
-//         // Check if order already exists
-//         const existingOrder = await Order.findOne({
-//           where: {
-//             shopifyOrderId: shopifyOrder.id,
-//             merchantId
-//           }
-//         });
-
-//         if (existingOrder) {
-//           return existingOrder;
-//         }
-
-//         // Create new order with Shopify data
-//         return Order.create({
-//           merchantId,
-//           shopifyOrderId: shopifyOrder.id,
-//           shopifyStoreUrl,
-//           shopifyOrderData: shopifyOrder,
-//           status: 'selected'
-//         }, { transaction });
-//       })
-//     );
-
-//     await transaction.commit();
-
-//     res.status(201).json({
-//       success: true,
-//       orders: createdOrders.map(order => ({
-//         id: order.id,
-//         shopifyOrderId: order.shopifyOrderId,
-//         orderNumber: order.shopifyOrderData.order_number,
-//         customerName: order.shopifyOrderData.shipping_address?.name || order.shopifyOrderData.billing_address?.name,
-//         totalPrice: order.shopifyOrderData.total_price,
-//         status: order.status,
-//         createdAt: order.createdAt
-//       }))
-//     });
-//   } catch (error) {
-//     await transaction.rollback();
-//     console.error('Create orders error:', error);
-//     res.status(500).json({ error: 'Failed to create orders' });
-//   }
-// };
 
 const createOrders = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { orders, shopifyStoreUrl } = req.body;
-    const merchantId = req.user.id;
+    const isAdmin = req.query.admin === 'true';
+    const userId = req.user.id;
 
-    if (!shopifyStoreUrl) {
-      return res.status(400).json({ error: 'Shopify store URL is required' });
+    let merchant;
+    let shopifyStoreUrl;
+
+    if (isAdmin) {
+      // 🧑‍💼 Admin logic
+      const admin = await Admin.findOne({ where: { id: userId } });
+      if (!admin) {
+        return res.status(404).json({ success: false, message: 'Admin not found.' });
+      }
+
+      const { merchantEmail, orders } = req.body;
+
+      if (!merchantEmail) {
+        return res.status(400).json({ error: 'merchantEmail is required for admin requests.' });
+      }
+
+      merchant = await User.findOne({ where: { email: merchantEmail } });
+
+      if (!merchant) {
+        return res.status(404).json({ success: false, message: 'Merchant not found for provided email.' });
+      }
+
+      shopifyStoreUrl = merchant.shopifyStoreUrl;
+
+      if (!shopifyStoreUrl) {
+        return res.status(400).json({ error: 'Merchant does not have a Shopify store URL configured.' });
+      }
+
+      // orders are from body
+      if (!orders || !Array.isArray(orders)) {
+        return res.status(400).json({ error: 'Orders are required and must be an array.' });
+      }
+
+    } else {
+      // 🧑‍💻 Merchant logic
+      merchant = await User.findOne({ where: { id: userId } });
+
+      if (!merchant) {
+        return res.status(404).json({ success: false, message: 'Merchant not found.' });
+      }
+
+      shopifyStoreUrl = merchant.shopifyStoreUrl;
+
+      if (!shopifyStoreUrl) {
+        return res.status(400).json({ error: 'Your Shopify store URL is not configured.' });
+      }
+
+      const { orders } = req.body;
+
+      if (!orders || !Array.isArray(orders)) {
+        return res.status(400).json({ error: 'Orders are required and must be an array.' });
+      }
     }
 
-    const merchant = await User.findOne({ where: { id: merchantId } });
-
-    if (!merchant) {
-      return res.status(404).json({ success: false, message: 'Merchant not found.' });
-    }
-    console.log(merchant.email)
-    console.log(merchant.shopifyStoreUrl)
-//     console.log('DB URL:', merchant.shopifyStoreUrl);
-// console.log('DB URL Length:', merchant.shopifyStoreUrl.length);
-// console.log('DB URL Char Codes:', merchant.shopifyStoreUrl.split('').map(c => c.charCodeAt(0)));
-
-// console.log('Payload URL:', shopifyStoreUrl);
-// console.log('Payload URL Length:', shopifyStoreUrl.length);
-// console.log('Payload URL Char Codes:', shopifyStoreUrl.split('').map(c => c.charCodeAt(0)));
-
-    // Step 2: Compare store URL
-    // if (merchant.shopifyStoreUrl.trim().toLowerCase() === shopifyStoreUrl.trim().toLowerCase()) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: `Store mismatch: Provided Shopify store URL does not match the registered merchant store.`
-    //   });
-    // }
-    const normalizeUrl = (url) =>
-      he.decode(url) // decode HTML entities
-        .trim()
-        .toLowerCase()
-        .replace(/^https?:\/\//, '') // remove protocol
-        .replace(/\/$/, '');         // remove trailing slash
-    
-    if (normalizeUrl(merchant.shopifyStoreUrl) !== normalizeUrl(shopifyStoreUrl)) {
-      return res.status(400).json({
-        success: false,
-        message: `Store mismatch: Provided Shopify store URL does not match the registered merchant store.`,
-      });
-    }
-    
+    // ✅ Start order creation
     const createdOrders = await Promise.all(
-      orders.map(async (shopifyOrder) => {
+      req.body.orders.map(async (shopifyOrder) => {
+        const shopifyOrderId = shopifyOrder.orderReferenceNumber;
+
         const existingOrder = await Order.findOne({
           where: {
-            shopifyOrderId: shopifyOrder.id,
-            merchantId
+            shopifyOrderId,
+            merchantId: merchant.id
           }
         });
 
         if (existingOrder) return existingOrder;
 
         return Order.create({
-          merchantId,
-          shopifyOrderId: shopifyOrder.id,
+          merchantId: merchant.id,
+          shopifyOrderId,
           shopifyStoreUrl,
           shopifyOrderData: shopifyOrder,
-          trackingId: null, // ✅ generate trackingId
-          status: 'selected',
-          airwayBillNumber: null, // will remain null
+          trackingId: null,
+          status: 'unbooked',
+          airwayBillNumber: null,
           riderId: null,
           codCollected: null,
           pickedUpAt: null,
@@ -218,14 +179,18 @@ const createOrders = async (req, res) => {
       orders: createdOrders.map(order => ({
         id: order.id,
         shopifyOrderId: order.shopifyOrderId,
-        orderNumber: order.shopifyOrderData.order_number,
-        customerName: order.shopifyOrderData.shipping_address?.name || order.shopifyOrderData.billing_address?.name,
-        totalPrice: order.shopifyOrderData.total_price,
+        orderNumber: order.shopifyOrderData.order_number || order.shopifyOrderData.orderReferenceNumber,
+        customerName:
+          order.shopifyOrderData.shipping_address?.name ||
+          `${order.shopifyOrderData.shipping_address?.first_name || ''} ${order.shopifyOrderData.shipping_address?.last_name || ''}`.trim() ||
+          `${order.shopifyOrderData.billing_address?.first_name || ''} ${order.shopifyOrderData.billing_address?.last_name || ''}`.trim(),
+        totalPrice: order.shopifyOrderData.total_price || order.shopifyOrderData.orderAmount,
         status: order.status,
         trackingId: order.trackingId,
         createdAt: order.createdAt
       }))
     });
+
   } catch (error) {
     await transaction.rollback();
     console.error('Create orders error:', error);
@@ -403,6 +368,99 @@ const createOrders = async (req, res) => {
 // };
 
 
+// const createOrders = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     const { orders, shopifyStoreUrl } = req.body;
+//     const userId = req.user.id;
+
+//     if (!shopifyStoreUrl) {
+//       return res.status(400).json({ error: 'Shopify store URL is required' });
+//     }
+
+//     // Try finding user in Users table (Merchant)
+//     let merchant = await User.findOne({ where: { id: userId } });
+
+//     // If not found, check Admins table
+//     if (!merchant) {
+//       const admin = await Admin.findOne({ where: { id: userId } });
+
+//       if (!admin) {
+//         return res.status(404).json({ success: false, message: 'User not found in merchants or admins.' });
+//       }
+
+//       // If user is admin, you can allow them to create orders for a specific merchant (future scope)
+//       return res.status(403).json({ success: false, message: 'Admins cannot create orders directly.' });
+//     }
+
+//     // Normalize URLs for comparison
+//     const normalizeUrl = (url) =>
+//       he.decode(url).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+//     if (normalizeUrl(merchant.shopifyStoreUrl) !== normalizeUrl(shopifyStoreUrl)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Store mismatch: Provided Shopify store URL does not match the registered merchant store.`,
+//       });
+//     }
+
+//     // Process order creation
+//     const createdOrders = await Promise.all(
+//       orders.map(async (shopifyOrder) => {
+//         const shopifyOrderId = shopifyOrder.orderReferenceNumber;
+
+//         const existingOrder = await Order.findOne({
+//           where: {
+//             shopifyOrderId,
+//             merchantId: merchant.id
+//           }
+//         });
+
+//         if (existingOrder) return existingOrder;
+
+//         return Order.create({
+//           merchantId: merchant.id,
+//           shopifyOrderId,
+//           shopifyStoreUrl,
+//           shopifyOrderData: shopifyOrder,
+//           trackingId: null,
+//           status: 'selected',
+//           airwayBillNumber: null,
+//           riderId: null,
+//           codCollected: null,
+//           pickedUpAt: null,
+//           deliveredAt: null
+//         }, { transaction });
+//       })
+//     );
+
+//     await transaction.commit();
+
+//     res.status(201).json({
+//       success: true,
+//       orders: createdOrders.map(order => ({
+//         id: order.id,
+//         shopifyOrderId: order.shopifyOrderId,
+//         orderNumber: order.shopifyOrderData.order_number || order.shopifyOrderData.orderReferenceNumber,
+//         customerName:
+//           order.shopifyOrderData.shipping_address?.name ||
+//           `${order.shopifyOrderData.shipping_address?.first_name || ''} ${order.shopifyOrderData.shipping_address?.last_name || ''}`.trim() ||
+//           `${order.shopifyOrderData.billing_address?.first_name || ''} ${order.shopifyOrderData.billing_address?.last_name || ''}`.trim(),
+//         totalPrice: order.shopifyOrderData.total_price || order.shopifyOrderData.orderAmount,
+//         status: order.status,
+//         trackingId: order.trackingId,
+//         createdAt: order.createdAt
+//       }))
+//     });
+
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Create orders error:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
 const getOrders = async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
@@ -578,27 +636,106 @@ const updateOrder = async (req, res) => {
 // };
 
 
+// const bookOrder = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+//   try {
+//     const { orderId } = req.body;
+//     const merchantId = req.user.id;
+
+//     const order = await Order.findOne({
+//       where: {
+//         id: orderId,
+//         merchantId,
+//         status: 'selected'
+//       }
+//     });
+
+//     if (!order) {
+//       await transaction.rollback();
+//       return res.status(400).json({ error: 'Order not found or not in selected status' });
+//     }
+
+//     // const airwayBillNumber = generateAirwayBill();
+//     // const trackingId = generateTrackingId();
+
+//     await order.update({
+//       status: 'booked',
+//     }, { transaction });
+
+//     await OrderTracking.create({
+//       orderId: order.id,
+//       status: 'booked',
+//       description: 'Order booked and ready for pickup'
+//     }, { transaction });
+
+//     await transaction.commit();
+
+//     res.json({
+//       success: true,
+//       order: {
+//         id: order.id,
+//         shopifyOrderId: order.shopifyOrderId,
+//         orderNumber: order.shopifyOrderData.order_number,
+//         trackingId: order.trackingId,
+//         airwayBillNumber: order.airwayBillNumber,
+//         status: order.status
+//       }
+//     });
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Book order error:', error);
+//     res.status(500).json({ error: 'Failed to book order' });
+//   }
+// };
+
+
 const bookOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { orderId } = req.body;
-    const merchantId = req.user.id;
+    const { orderId, merchantEmail } = req.body;
+    const isAdmin = req.query.admin === 'true';
 
-    const order = await Order.findOne({
-      where: {
-        id: orderId,
-        merchantId,
-        status: 'selected'
+    let merchantId;
+    let order;
+
+    if (isAdmin) {
+      if (!merchantEmail) {
+        await transaction.rollback();
+        return res.status(400).json({ error: 'Merchant email is required for admin booking' });
       }
-    });
+
+      const merchant = await User.findOne({ where: { email: merchantEmail } });
+      if (!merchant) {
+        await transaction.rollback();
+        return res.status(404).json({ error: 'Merchant not found' });
+      }
+
+      merchantId = merchant.id;
+
+      order = await Order.findOne({
+        where: {
+          shopifyOrderId: orderId,
+          merchantId,
+          status: 'unbooked'
+        }
+      });
+
+    } else {
+      merchantId = req.user.id;
+
+      order = await Order.findOne({
+        where: {
+          id: orderId,
+          merchantId,
+          status: 'unbooked'
+        }
+      });
+    }
 
     if (!order) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'Order not found or not in selected status' });
+      return res.status(400).json({ error: 'Order not found or not in unbooked status' });
     }
-
-    // const airwayBillNumber = generateAirwayBill();
-    // const trackingId = generateTrackingId();
 
     await order.update({
       status: 'booked',
@@ -623,6 +760,7 @@ const bookOrder = async (req, res) => {
         status: order.status
       }
     });
+
   } catch (error) {
     await transaction.rollback();
     console.error('Book order error:', error);
@@ -657,7 +795,7 @@ const getOrderAnalytics = async (req, res) => {
       analyticsMap.totalOrders += count;
 
       switch (item.status) {
-        case 'selected':
+        case 'unbooked':
         case 'booked':
           analyticsMap.inProcess += count;
           break;

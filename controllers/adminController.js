@@ -3,6 +3,8 @@ const Order = require('../models/Order');
 const Rider = require('../models/Rider');
 const User = require('../models/User');
 const OrderTracking = require('../models/OrderTracking');
+const generateTrackingId = require('../utils/generateTrackingId');
+const generateAirwayBill = require('../utils/generateAirwayBill');
 const { Op } = require('sequelize');
 const { fn, col , where, literal} = require('sequelize');
 const { sequelize } = require('../config/database');
@@ -12,7 +14,7 @@ const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.findAll({
       where: {
-        status: { [Op.ne]: 'selected' } // ✅ exclude orders with status 'selected'
+        status: { [Op.ne]: 'unbooked' } // ✅ exclude orders with status 'unbooked'
       },
       include: [
         {
@@ -42,51 +44,51 @@ const getAllOrders = async (req, res) => {
   }
 };
 
-const updateFulfillmentMethod = async (req, res) => {
-  try {
-    const { id } = req.query;
-    const { fulfillmentMethod } = req.body;
+// const updateFulfillmentMethod = async (req, res) => {
+//   try {
+//     const { id } = req.query;
+//     const { fulfillmentMethod } = req.body;
 
-    // Validate input
-    if (!id || !fulfillmentMethod) {
-      return res.status(400).json({ error: 'Order ID and fulfillmentMethod are required' });
-    }
+//     // Validate input
+//     if (!id || !fulfillmentMethod) {
+//       return res.status(400).json({ error: 'Order ID and fulfillmentMethod are required' });
+//     }
 
-    const validMethods = ['Rushrr', 'postEx'];
-    if (!validMethods.includes(fulfillmentMethod)) {
-      return res.status(400).json({ error: 'Invalid fulfillment method' });
-    }
+//     const validMethods = ['Rushrr', 'postEx'];
+//     if (!validMethods.includes(fulfillmentMethod)) {
+//       return res.status(400).json({ error: 'Invalid fulfillment method' });
+//     }
 
-    const order = await Order.findByPk(id);
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+//     const order = await Order.findByPk(id);
+//     if (!order) {
+//       return res.status(404).json({ error: 'Order not found' });
+//     }
 
-    // If already set, avoid unnecessary update
-    if (order.fulfillmentMethod === fulfillmentMethod) {
-      return res.status(200).json({ message: `Fulfillment method is already set to ${fulfillmentMethod}` });
-    }
+//     // If already set, avoid unnecessary update
+//     if (order.fulfillmentMethod === fulfillmentMethod) {
+//       return res.status(200).json({ message: `Fulfillment method is already set to ${fulfillmentMethod}` });
+//     }
 
-    // Update fulfillment method
-    await order.update({ fulfillmentMethod });
+//     // Update fulfillment method
+//     await order.update({ fulfillmentMethod });
 
-    // Optional: Trigger integration when switching to postEx
-    if (fulfillmentMethod === 'postEx') {
-      // await PostExService.createShipment(order); // implement separately
-    }
+//     // Optional: Trigger integration when switching to postEx
+//     if (fulfillmentMethod === 'postEx') {
+//       // await PostExService.createShipment(order); // implement separately
+//     }
 
-    res.json({
-      success: true,
-      message: `Fulfillment method updated to ${fulfillmentMethod}`,
-      fulfillmentMethod: order.fulfillmentMethod,
-      orderId: order.id,
-      status: order.status
-    });
-  } catch (error) {
-    console.error('Update fulfillment method error:', error);
-    res.status(500).json({ error: 'Failed to update fulfillment method' });
-  }
-};
+//     res.json({
+//       success: true,
+//       message: `Fulfillment method updated to ${fulfillmentMethod}`,
+//       fulfillmentMethod: order.fulfillmentMethod,
+//       orderId: order.id,
+//       status: order.status
+//     });
+//   } catch (error) {
+//     console.error('Update fulfillment method error:', error);
+//     res.status(500).json({ error: 'Failed to update fulfillment method' });
+//   }
+// };
 
 
 // const createRider = async (req, res) => {
@@ -124,6 +126,63 @@ const updateFulfillmentMethod = async (req, res) => {
 //     res.status(500).json({ error: 'Failed to create rider' });
 //   }
 // };
+
+const updateFulfillmentMethod = async (req, res) => {
+  try {
+    const { id } = req.query;
+    const { fulfillmentMethod } = req.body;
+
+    // Validate input
+    if (!id || !fulfillmentMethod) {
+      return res.status(400).json({ error: 'Order ID and fulfillmentMethod are required' });
+    }
+
+    const validMethods = ['Rushrr', 'postEx'];
+    if (!validMethods.includes(fulfillmentMethod)) {
+      return res.status(400).json({ error: 'Invalid fulfillment method' });
+    }
+
+    const order = await Order.findByPk(id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // If already set, avoid unnecessary update
+    if (order.fulfillmentMethod === fulfillmentMethod) {
+      return res.status(200).json({ message: `Fulfillment method is already set to ${fulfillmentMethod}` });
+    }
+
+    const updateData = { fulfillmentMethod };
+
+    if (fulfillmentMethod === 'Rushrr') {
+      updateData.trackingId = generateTrackingId();
+      updateData.airwayBillNumber = generateAirwayBill();
+    }
+
+    await order.update(updateData);
+
+    // Optional: Trigger integration when switching to postEx
+    // if (fulfillmentMethod === 'postEx') {
+    //   await PostExService.createShipment(order);
+    // }
+
+    res.json({
+      success: true,
+      message: `Fulfillment method updated to ${fulfillmentMethod}`,
+      fulfillmentMethod: order.fulfillmentMethod,
+      orderId: order.id,
+      status: order.status,
+      ...(fulfillmentMethod === 'Rushrr' && {
+        trackingId: order.trackingId,
+        airwayBillNumber: order.airwayBillNumber
+      })
+    });
+  } catch (error) {
+    console.error('Update fulfillment method error:', error);
+    res.status(500).json({ error: 'Failed to update fulfillment method' });
+  }
+};
+
 
 const createRider = async (req, res) => {
   try {
@@ -357,7 +416,7 @@ const getAdminAnalytics = async (req, res) => {
         case 'failed':
           analytics.returned += count;
           break;
-        case 'selected':
+        case 'unbooked':
         case 'booked':
         case 'in_warehouse':
         case 'in_transit':
@@ -390,10 +449,10 @@ const getAllMerchantsWithTotalOrders = async (req, res) => {
       attributes: ['id', 'firstName', 'lastName', 'email','apiKey', 'shopifyStoreUrl', 'shopifyStoreName', 'pickupAddressCode', 'isActive', 'createdAt']
     });
 
-    // Get total non-selected orders grouped by merchantId
+    // Get total non-unbooked orders grouped by merchantId
     const orderCounts = await Order.findAll({
       where: {
-        status: { [Op.not]: 'selected' }
+        status: { [Op.not]: 'unbooked' }
       },
       attributes: [
         'merchantId',
@@ -427,9 +486,9 @@ const getAdminPerformanceData = async (req, res) => {
   try {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Top Performing Customers (non-selected orders)
+    // Top Performing Customers (non-unbooked orders)
     const topMerchantsRaw = await Order.findAll({
-      where: { status: { [Op.not]: 'selected' } },
+      where: { status: { [Op.not]: 'unbooked' } },
       attributes: [
         'merchantId',
         [fn('COUNT', col('id')), 'totalOrders']
@@ -459,7 +518,7 @@ const getAdminPerformanceData = async (req, res) => {
     // Today's Performance (using updatedAt)
     const todayBookings = await Order.count({
       where: {
-        status: { [Op.not]: 'selected' },
+        status: { [Op.not]: 'unbooked' },
         updatedAt: { [Op.gte]: twentyFourHoursAgo }
       }
     });
@@ -481,7 +540,7 @@ const getAdminPerformanceData = async (req, res) => {
     // Performance Metrics
     const totalProcessedOrders = await Order.count({
       where: {
-        status: { [Op.not]: 'selected' }
+        status: { [Op.not]: 'unbooked' }
       }
     });
 

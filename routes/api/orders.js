@@ -21,7 +21,7 @@ router.post('/create-order',
   authenticate, 
   authorize('merchant', 'admin'),
 orderValidationRules.create,
-  validate,
+  // validate,
   orderController.createOrders
 );
 
@@ -44,7 +44,7 @@ router.put('/update',
 router.post('/book', 
   // apiLimiter,
   authenticate, 
-  authorize('merchant'),
+  authorize('merchant',"admin"),
   orderController.bookOrder
 );
 
